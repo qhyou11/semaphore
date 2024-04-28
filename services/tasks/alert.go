@@ -11,6 +11,7 @@ import (
 	"github.com/ansible-semaphore/semaphore/pkg/task_logger"
 	"github.com/ansible-semaphore/semaphore/util"
 	"github.com/ansible-semaphore/semaphore/util/mailer"
+	"github.com/blinkbean/dingtalk"
 )
 
 //go:embed templates/*.tmpl
@@ -180,6 +181,74 @@ func (t *TaskRunner) sendTelegramAlert() {
 	}
 
 	t.Log("Sent successfully telegram alert")
+}
+
+func (t *TaskRunner) sendDingtalkAlert() {
+
+	if t.Template.SuppressSuccessAlerts && t.Task.Status == task_logger.TaskSuccessStatus {
+		return
+	}
+
+	dingtalkToken := util.Config.DingtalkToken
+
+	if dingtalkToken == "" {
+		return
+	}
+
+	dingToken := []string{dingtalkToken}
+	dingtalkClient := dingtalk.InitDingTalk(dingToken, "")
+
+	body := bytes.NewBufferString("")
+
+	var version string
+	if t.Task.Version != nil {
+		version = *t.Task.Version
+	} else if t.Task.BuildTaskID != nil {
+		buildVer := t.Task.GetIncomingVersion(t.pool.store)
+		if buildVer != nil {
+			version = *buildVer
+		}
+	} else {
+		version = ""
+	}
+
+	var author string
+	if t.Task.UserID != nil {
+		user, err := t.pool.store.GetUser(*t.Task.UserID)
+		if err != nil {
+			panic(err)
+		}
+		author = user.Name
+	}
+
+	alert := Alert{
+		Name:   t.Template.Name,
+		Author: author,
+		Color:  t.alertColor("dingtalk"),
+		Task: alertTask{
+			ID:      strconv.Itoa(t.Task.ID),
+			URL:     t.taskLink(),
+			Result:  t.Task.Status.Format(),
+			Version: version,
+			Desc:    t.Task.Message,
+		},
+	}
+
+	tpl, err := template.ParseFS(templates, "templates/dingtalk.tmpl")
+
+	if err != nil {
+		t.Log("Can't parse dingtalk template!")
+		panic(err)
+	}
+
+	err = tpl.Execute(body, alert)
+	if err != nil {
+		t.Log("Can't generate alert template!")
+		panic(err)
+	}
+
+	dingtalkClient.SendMarkDownMessage("Semaphore task alarm", body.String())
+
 }
 
 func (t *TaskRunner) sendSlackAlert() {

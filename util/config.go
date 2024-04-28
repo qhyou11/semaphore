@@ -171,6 +171,7 @@ type ConfigType struct {
 	TelegramAlert       bool   `json:"telegram_alert" env:"SEMAPHORE_TELEGRAM_ALERT"`
 	TelegramChat        string `json:"telegram_chat" env:"SEMAPHORE_TELEGRAM_CHAT"`
 	TelegramToken       string `json:"telegram_token" env:"SEMAPHORE_TELEGRAM_TOKEN"`
+	DingtalkToken       string `json:"dingtalk_token" env:"SEMAPHORE_DINGTALK_TOKEN"`
 	SlackAlert          bool   `json:"slack_alert" env:"SEMAPHORE_SLACK_ALERT"`
 	SlackUrl            string `json:"slack_url" env:"SEMAPHORE_SLACK_URL"`
 	RocketChatAlert     bool   `json:"rocketchat_alert" env:"SEMAPHORE_ROCKETCHAT_ALERT"`

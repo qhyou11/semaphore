@@ -71,6 +71,7 @@ func AddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	template.ID = 0
 	template.ProjectID = project.ID
 	newTemplate, err := helpers.Store(r).CreateTemplate(template)
 
