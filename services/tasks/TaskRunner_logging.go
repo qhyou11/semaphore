@@ -98,6 +98,7 @@ func (t *TaskRunner) SetStatus(status task_logger.TaskStatus) {
 
 	if status.IsNotifiable() {
 		t.sendTelegramAlert()
+		t.sendDingtalkAlert()
 		t.sendSlackAlert()
 		t.sendRocketChatAlert()
 		t.sendMicrosoftTeamsAlert()
