@@ -196,10 +196,13 @@ func Route() *mux.Router {
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.GetTasks).Methods("GET", "HEAD")
 	tasksAPI.Path("/{task_id}").HandlerFunc(tasks.DeleteTask).Methods("DELETE")
 
+	userUserAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
+	userUserAPI.Use(readonlyUserMiddleware)
+	userUserAPI.Methods("GET", "HEAD").HandlerFunc(getUser)
+
 	userAPI := authenticatedAPI.Path("/users/{user_id}").Subrouter()
 	userAPI.Use(getUserMiddleware)
 
-	userAPI.Methods("GET", "HEAD").HandlerFunc(getUser)
 	userAPI.Methods("PUT").HandlerFunc(updateUser)
 	userAPI.Methods("DELETE").HandlerFunc(deleteUser)
 
@@ -272,6 +275,7 @@ func Route() *mux.Router {
 
 	projectUserAPI.Path("/runners").HandlerFunc(projects.GetRunners).Methods("GET", "HEAD")
 	projectUserAPI.Path("/runners").HandlerFunc(projects.AddRunner).Methods("POST")
+	projectUserAPI.Path("/runner_tags").HandlerFunc(projects.GetRunnerTags).Methods("GET", "HEAD")
 
 	projectRunnersAPI := projectUserAPI.PathPrefix("/runners").Subrouter()
 	projectRunnersAPI.Use(projects.RunnerMiddleware)
@@ -327,6 +331,7 @@ func Route() *mux.Router {
 	projectRepoManagement.HandleFunc("/{repository_id}/refs", projects.GetRepositoryRefs).Methods("GET", "HEAD")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.UpdateRepository).Methods("PUT")
 	projectRepoManagement.HandleFunc("/{repository_id}", projects.RemoveRepository).Methods("DELETE")
+	projectRepoManagement.HandleFunc("/{repository_id}/branches", projects.GetRepositoryBranches).Methods("GET", "HEAD")
 
 	projectInventoryManagement := projectUserAPI.PathPrefix("/inventory").Subrouter()
 	projectInventoryManagement.Use(projects.InventoryMiddleware)
@@ -381,6 +386,9 @@ func Route() *mux.Router {
 	projectTaskManagement.HandleFunc("/{task_id}/raw_output", projects.GetTaskRawOutput).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", projects.GetTask).Methods("GET", "HEAD")
 	projectTaskManagement.HandleFunc("/{task_id}", projects.RemoveTask).Methods("DELETE")
+	projectTaskManagement.HandleFunc("/{task_id}/stages", projects.GetTaskStages).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}/ansible/hosts", projects.GetAnsibleTaskHosts).Methods("GET", "HEAD")
+	projectTaskManagement.HandleFunc("/{task_id}/ansible/errors", projects.GetAnsibleTaskErrors).Methods("GET", "HEAD")
 
 	projectScheduleManagement := projectUserAPI.PathPrefix("/schedules").Subrouter()
 	projectScheduleManagement.Use(projects.SchedulesMiddleware)
@@ -568,6 +576,7 @@ func getSystemInfo(w http.ResponseWriter, r *http.Request) {
 		"premium_features": map[string]bool{
 			"project_runners":   false,
 			"terraform_backend": false,
+			"task_result":       false,
 		},
 
 		"git_client": util.Config.GitClientId,

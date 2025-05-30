@@ -345,9 +345,12 @@ type Store interface {
 	CreateTaskStage(stage TaskStage) (TaskStage, error)
 	EndTaskStage(taskID int, stageID int, end time.Time, endOutputID int) error
 	CreateTaskStageResult(taskID int, stageID int, result map[string]any) error
+	CreateAnsibleTaskHost(host AnsibleTaskHost) error
+	CreateAnsibleTaskError(error AnsibleTaskError) error
+	GetAnsibleTaskHosts(projectID int, taskID int) ([]AnsibleTaskHost, error)
+	GetAnsibleTaskErrors(projectID int, taskID int) ([]AnsibleTaskError, error)
 
-	GetTaskStages(projectID int, taskID int) ([]TaskStage, error)
-	GetTaskStagesByType(projectID int, taskID int, stage TaskStageType) ([]TaskStage, error)
+	GetTaskStages(projectID int, taskID int) ([]TaskStageWithResult, error)
 	GetTaskStageResult(projectID int, taskID int, stageID int) (TaskStageResult, error)
 	GetTaskStageOutputs(projectID int, taskID int, stageID int) ([]TaskOutput, error)
 
@@ -369,6 +372,7 @@ type Store interface {
 	CreateRunner(runner Runner) (Runner, error)
 	TouchRunner(runner Runner) (err error)
 	ClearRunnerCache(runner Runner) (err error)
+	GetRunnerTags(projectID int) ([]RunnerTag, error)
 
 	GetTemplateVaults(projectID int, templateID int) ([]TemplateVault, error)
 	CreateTemplateVault(vault TemplateVault) (TemplateVault, error)
@@ -620,6 +624,32 @@ func ValidateInventory(store Store, inventory *Inventory) (err error) {
 	return
 }
 
+type StringArrayField []string
+
+func (m *StringArrayField) Scan(value any) error {
+	if value == nil {
+		*m = nil
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, m)
+	case string:
+		return json.Unmarshal([]byte(v), m)
+	default:
+		return errors.New("unsupported type for MapStringAnyField")
+	}
+}
+
+// Value implements the driver.Valuer interface for MapStringAnyField
+func (m *StringArrayField) Value() (driver.Value, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return json.Marshal(m)
+}
+
 type MapStringAnyField map[string]any
 
 func (m *MapStringAnyField) Scan(value any) error {
@@ -639,6 +669,7 @@ func (m *MapStringAnyField) Scan(value any) error {
 }
 
 // Value implements the driver.Valuer interface for MapStringAnyField
+// DO NOT ADD *, It breaks method call
 func (m MapStringAnyField) Value() (driver.Value, error) {
 	if m == nil {
 		return nil, nil

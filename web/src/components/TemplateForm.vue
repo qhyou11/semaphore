@@ -177,7 +177,7 @@
           v-if="needField('playbook')"
         ></v-text-field>
 
-        <v-select
+        <v-autocomplete
           v-model="item.inventory_id"
           :label="fieldLabel('inventory')"
           :items="inventory"
@@ -188,9 +188,9 @@
           required
           :disabled="formSaving"
           v-if="needField('inventory')"
-        ></v-select>
+        ></v-autocomplete>
 
-        <v-select
+        <v-autocomplete
           v-model="item.repository_id"
           :label="fieldLabel('repository') + ' *'"
           :items="repositories"
@@ -199,12 +199,48 @@
           :rules="isFieldRequired('repository') ? [v => !!v || $t('repository_required')] : []"
           outlined
           dense
+          hide-details
           :required="isFieldRequired('repository')"
           :disabled="formSaving"
           v-if="needField('repository')"
-        ></v-select>
+        ></v-autocomplete>
 
-        <v-select
+        <div class="mb-3 text-right">
+
+          <a
+            v-if="!item.git_branch && !setBranch"
+            @click="setBranch = true"
+          >Set branch</a>
+
+        </div>
+
+        <div v-if="item.git_branch || setBranch">
+          <div v-if="branches != null">
+            <v-autocomplete
+              clearable
+              :items="branches"
+              v-model="item.git_branch"
+              :label="fieldLabel('branch')"
+              outlined
+              dense
+              :disabled="formSaving"
+              :placeholder="$t('branch')"
+            ></v-autocomplete>
+          </div>
+          <div v-else>
+            <v-text-field
+              clearable
+              v-model="item.git_branch"
+              :label="fieldLabel('branch')"
+              outlined
+              dense
+              :disabled="formSaving"
+              :placeholder="$t('branch')"
+            ></v-text-field>
+          </div>
+        </div>
+
+        <v-autocomplete
           v-model="item.environment_id"
           :label="fieldLabel('environment')"
           :items="environment"
@@ -216,9 +252,9 @@
           :required="isFieldRequired('environment')"
           :disabled="formSaving"
           v-if="needField('environment')"
-        ></v-select>
+        ></v-autocomplete>
 
-        <v-select
+        <v-autocomplete
           class="mb-3"
           style="max-height: 60px;"
           v-model="item.view_id"
@@ -230,31 +266,26 @@
           :disabled="formSaving"
           outlined
           dense
-        ></v-select>
+        ></v-autocomplete>
       </v-col>
 
       <v-col>
         <h2 class="mb-4">{{ $t('template_advanced') }}</h2>
 
         <div class="mb-4">
-          <v-text-field
-            v-model="item.git_branch"
-            :label="fieldLabel('branch')"
-            outlined
-            dense
-            :disabled="formSaving"
-            :placeholder="$t('branch')"
-          ></v-text-field>
 
-          <v-text-field
+          <v-autocomplete
             v-if="premiumFeatures.project_runners"
             v-model="item.runner_tag"
+            :items="runnerTags"
             :label="fieldLabel('runner_tag')"
+            item-value="tag"
+            item-text="tag"
             outlined
             dense
             :disabled="formSaving"
             :placeholder="$t('runner_tag')"
-          ></v-text-field>
+          ></v-autocomplete>
 
           <SurveyVars
             :vars="surveyVars"
@@ -384,7 +415,7 @@
             v-model="item.task_params.override_backend"
             :true-value="true"
             :false-value="false"
-            v-if="needField('override_backend')"
+            v-if="needField('override_backend') && premiumFeatures.terraform_backend"
           />
 
           <v-text-field
@@ -395,6 +426,7 @@
             :disabled="formSaving || !item.task_params.override_backend"
             placeholder="backend.tf"
             :rules="[v => validateBackendFilename(v) || $t('terraform_invalid_backend_filename')]"
+            v-if="needField('backend_filename') && premiumFeatures.terraform_backend"
           ></v-text-field>
 
         </div>
@@ -528,10 +560,23 @@ export default {
       helpKey: null,
 
       args: [],
+      runnerTags: null,
+      branches: null,
+      setBranch: false,
     };
   },
 
   watch: {
+    gitBranch() {
+      this.setBranch = false;
+    },
+
+    async repositoryId() {
+      this.branches = null;
+
+      await this.loadBranches();
+    },
+
     needReset(val) {
       if (val) {
         if (this.item != null) {
@@ -550,7 +595,19 @@ export default {
     },
   },
 
+  async created() {
+    await this.loadBranches();
+  },
+
   computed: {
+    repositoryId() {
+      return this.item?.repository_id;
+    },
+
+    gitBranch() {
+      return this.item?.git_branch;
+    },
+
     allow_override_inventory: {
       get() {
         return this.item.task_params.allow_override_inventory;
@@ -618,12 +675,23 @@ export default {
         && this.environment != null
         && this.item != null
         && this.schedules != null
-        && this.views != null;
+        && this.views != null
+        && this.runnerTags != null;
     },
 
   },
 
   methods: {
+    async loadBranches() {
+      if (this.repositoryId == null) {
+        return;
+      }
+
+      this.branches = await this.loadProjectEndpoint(
+        `/repositories/${this.repositoryId}/branches`,
+      );
+    },
+
     validateBackendFilename(v) {
       if (!v) {
         return true;
@@ -684,6 +752,7 @@ export default {
         this.views,
         this.environment,
         templates,
+        this.runnerTags,
       ] = await Promise.all([
         this.loadProjectResources('repositories'),
         this.loadProjectEndpoint(`/inventory?app=${this.app}&template_id=${this.itemId}`),
@@ -692,6 +761,7 @@ export default {
         this.loadProjectResources('views'),
         this.loadProjectResources('environment'),
         this.loadProjectResources('templates'),
+        this.loadProjectResources('runner_tags'),
       ]);
 
       this.inventory = [...inventory1, ...inventory2];

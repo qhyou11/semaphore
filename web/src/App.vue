@@ -485,7 +485,7 @@
               <v-list-item
                 key="runners"
                 to="/runners"
-                v-if="user.admin && systemInfo.use_remote_runner"
+                v-if="user.admin"
               >
                 <v-list-item-icon>
                   <v-icon>mdi-cogs</v-icon>
@@ -754,6 +754,51 @@
     padding-left: 0 !important;
     margin-left: 0 !important;
   }
+}
+
+.v-input {
+  .v-input__slot fieldset {
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(133, 133, 133, 0.4);
+    background-color: rgba(133, 133, 133, 0.1);
+  }
+
+  .v-label--active {
+    text-shadow: 0 0 2px black;
+    font-weight: 500;
+  }
+
+  &.primary--text {
+    .v-input__slot fieldset {
+      border-width: 2px;
+      border-color: #2196f3;
+    }
+  }
+
+  &.error--text {
+    .v-input__slot fieldset {
+      border-width: 2px;
+      border-color: #ff5252;
+    }
+  }
+}
+
+.v-input--is-disabled {
+  opacity: 0.5;
+}
+
+.theme--light {
+  .v-input {
+    .v-label--active {
+      text-shadow: 0 0 2px white;
+    }
+  }
+}
+
+.v-list--dense .v-list-item .v-list-item__title {
+  font-weight: normal;
+  font-size: 1rem;
 }
 
 @import '~vuetify/src/styles/styles.sass';

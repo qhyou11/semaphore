@@ -9,10 +9,12 @@ type StageResultParser interface {
 	IsStart(currentStage *db.TaskStage, output db.TaskOutput) bool
 	IsEnd(currentStage *db.TaskStage, output db.TaskOutput) bool
 	NeedParse() bool
-	Parse(outputs []db.TaskOutput) (map[string]any, error)
+	State() any
+	Parse(currentStage *db.TaskStage, output db.TaskOutput, store db.Store, projectID int) (bool, error)
+	Result() map[string]any
 }
 
-func GetStageResultParser(app db.TemplateApp, stageType db.TaskStageType) StageResultParser {
+func GetStageResultParser(app db.TemplateApp, stageType db.TaskStageType, state any) StageResultParser {
 
 	if stageType == db.TaskStageInit {
 		return &InitStageParser{}
@@ -22,9 +24,27 @@ func GetStageResultParser(app db.TemplateApp, stageType db.TaskStageType) StageR
 	case db.AppAnsible:
 		switch stageType {
 		case db.TaskStageRunning:
-			return &AnsibleRunningStageParser{}
+
+			if state == nil {
+				state = &AnsibleRunningStageParserState{}
+			} else if _, ok := state.(*AnsibleRunningStageParserState); !ok {
+				state = &AnsibleRunningStageParserState{}
+			}
+
+			return &AnsibleRunningStageParser{
+				state: state.(*AnsibleRunningStageParserState),
+			}
 		case db.TaskStagePrintResult:
-			return &AnsibleResultStageParser{}
+
+			if state == nil {
+				state = &AnsibleResultStageParserState{}
+			} else if _, ok := state.(*AnsibleResultStageParserState); !ok {
+				state = &AnsibleResultStageParserState{}
+			}
+
+			return &AnsibleResultStageParser{
+				state: state.(*AnsibleResultStageParserState),
+			}
 		}
 	}
 
@@ -62,6 +82,14 @@ func (p InitStageParser) IsEnd(currentStage *db.TaskStage, output db.TaskOutput)
 	return false
 }
 
-func (p InitStageParser) Parse(outputs []db.TaskOutput) (map[string]any, error) {
-	return nil, nil
+func (p InitStageParser) Parse(currentStage *db.TaskStage, output db.TaskOutput, store db.Store, projectID int) (bool, error) {
+	return false, nil
+}
+
+func (p InitStageParser) Result() map[string]any {
+	return nil
+}
+
+func (p InitStageParser) State() any {
+	return nil
 }
